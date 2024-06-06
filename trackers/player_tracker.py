@@ -1,6 +1,9 @@
 from ultralytics import YOLO
+from utils import measure_distance, get_center
 import cv2
 import pickle
+import sys
+sys.path.append('../')
 
 class PlayerTracker:
     def __init__(self, model_path, color=(0, 255, 0)):
@@ -104,3 +107,65 @@ class PlayerTracker:
             output_video_frames.append(frame)
         
         return output_video_frames
+    
+    def filter_players(self, court_keypoints, players):
+        """
+        Filters the players to only include those closest to the court keypoints in the first frame.
+        
+        Parameters:
+        - court_keypoints: List of keypoints representing the court lines.
+        - players: List of dictionaries containing player bounding boxes for each frame.
+        
+        Returns:
+        - filtered_players: List of dictionaries containing filtered player bounding boxes for each frame.
+        """
+        # Get the players from the first frame
+        players_first_frame = players[0]
+        
+        # Choose the players closest to the court keypoints in the first frame
+        chosen_players = self.choose_players(court_keypoints, players_first_frame)
+
+        # Initialize an empty list to store the filtered players
+        filtered_players = []
+
+        # Filter the players for each frame
+        for player in players:
+            filtered_player = {track_id: bbox for track_id, bbox in player.items() if track_id in chosen_players}
+            filtered_players.append(filtered_player)
+
+        return filtered_players
+
+    def choose_players(self, court_keypoints, players_first_frame):
+        """
+        Chooses the players closest to the court keypoints in the first frame.
+        
+        Parameters:
+        - court_keypoints: List of keypoints representing the court lines.
+        - players_first_frame: Dictionary containing player bounding boxes for the first frame.
+        
+        Returns:
+        - chosen_players: List of track IDs of the chosen players.
+        """
+        # Initialize a list to store distances between players and court keypoints
+        distances = []
+
+        # Calculate the distance from each player to the nearest court keypoint
+        for track_id, bbox in players_first_frame.items():
+            player_center = get_center(bbox)
+            
+            min_distance = float('inf')
+            for i in range(0, len(court_keypoints), 2):
+                court_keypoint = (court_keypoints[i], court_keypoints[i+1])
+                distance = measure_distance(player_center, court_keypoint)
+                if distance < min_distance:
+                    min_distance = distance
+
+            distances.append((track_id, min_distance))
+
+        # Sort players by distance to the nearest court keypoint
+        distances.sort(key=lambda x: x[1])
+
+        # Choose the two closest players
+        chosen_players = [distances[0][0], distances[1][0]]
+        
+        return chosen_players
