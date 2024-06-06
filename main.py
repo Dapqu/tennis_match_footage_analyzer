@@ -16,9 +16,12 @@ def main():
     player_tracker = PlayerTracker(model_path='yolov8x', color=(0, 255, 0))
     ball_tracker = BallTracker(model_path='models/last.pt', color=(0, 0, 255))
     
+    ## Detections
     players = player_tracker.detect_frames(video_frames, read_from_stub=True, stub_path="tracker_stubs/player_detections.pkl")
     ball = ball_tracker.detect_frames(video_frames, read_from_stub=True, stub_path="tracker_stubs/ball_detections.pkl")
-
+    ## Interpolates
+    ball = ball_tracker.interpolate_ball_positions(ball)
+    
     # Court line detector
     court_model_path = "models/keypoints.pth"
     court_line_detector = CourtLineDetector(court_model_path)

@@ -1,11 +1,37 @@
 from ultralytics import YOLO
 import cv2
 import pickle
+import pandas as pd
 
 class BallTracker:
     def __init__(self, model_path, color=(0, 255, 0)):
         self.model = YOLO(model_path)
         self.color = color
+
+    def interpolate_ball_positions(self, ball_positions):
+        """
+        Interpolates missing ball positions in a list of ball position dictionaries.
+        
+        Parameters:
+        - ball_positions: List of dictionaries containing ball positions with frame numbers as keys.
+        
+        Returns:
+        - ball_positions: List of dictionaries with interpolated ball positions.
+        """
+
+        ball_positions = [x.get(1, []) for x in ball_positions]
+        # Convert the list above into panda's dataframe
+        df_ball_positions = pd.DataFrame(ball_positions, columns=['x1', 'y1', 'x2', 'y2'])
+        
+        # Interpolate the missing values
+        df_ball_positions = df_ball_positions.interpolate()
+        # Backfill the remaining missing values (if any) after interpolation
+        df_ball_positions = df_ball_positions.bfill()
+
+        # Convert the dataframe back to list
+        ball_positions = [{1:x} for x in df_ball_positions.to_numpy().tolist()]
+
+        return ball_positions
 
     def detect_frames(self, frames, read_from_stub=False, stub_path=None):
         """
